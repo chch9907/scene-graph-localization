@@ -1,17 +1,18 @@
 # Open-vacabulary Scene Graph Construction and Monte-Carlo Localization 
 Developed by Chang Chen@hku, 2026.1.12
 
-## Content
+## 0. Content
 This repo was folked from [concept-graph](scene_graphs/3dvproject/conceptgraph/localization). I made three main differences: 
  - [conceptgraph/localization](./conceptgraph/localization/): contains all the necessary codes for running a simple monte-carlo localization when kidnappig a robot into the scene. This code requires building scene graphs and doing relocalization on an offline collected RGBD datatset, e.g., Replica dataset, and AI2THOR (I mainly used), or a rosbag in a real-world scene. Several improvement can be made on it, e.g., modifying it to advanced localization algorithms, or adding an active localization strategy. This code uses Grounded-SAM + CLIP for semantic understanding using the NVIDIA RTX 4090 GPU. More details of the original concept-graph can be found in [REAMDE_conceptgraph.md](./README_conceptgraph.md).
  - [scene_understand](./scene_understand/): contains an open-vocabulary object detector using Detic + CLIP, designing for real-world deployment with its better inference speed than Grounded-SAM + CLIP. I have custimized the Detic for better integration with other modules. In experiments, it concumed 1.3s per frame on NVIDIA Jetson Orin NX. 
  - [dynamic_scene_graph](./dynamic_scene_graph/): contains a code draft for establishing a dynamic topological graph with the networkx library. I haven't complete it, and it would be useful to build on it.
 
+Install repo with submodules:
 ```bash
-git clone xx --recurse-submodules
+git clone git@github.com:chch9907/scene-graph-localization.git --recurse-submodules
 ```
 
-## Setup for conceptgraph-localization
+## 1. Setup for conceptgraph-localization
 
 The env variables needed can be found in `env_vars.bash.template`. When following the setup guide below, you can duplicate that files and change the variables accordingly for easy setup. 
 
@@ -93,7 +94,7 @@ cd concept-graphs
 pip install -e .
 ```
 
-## Prepare dataset
+## 2. Prepare dataset
 
 ### Replica dataset (optional)
 
@@ -124,7 +125,7 @@ pip install ai2thor-colab prior --upgrade
 ```
 
 
-## Generating AI2Thor datasets
+## 3. Generating AI2Thor datasets
 
 1. Use `$AI2THOR_DATASET_ROOT` as the directory ai2thor dataset and save it to a variable. Also set the scene used from AI2Thor. 
 
@@ -141,7 +142,7 @@ python scripts/generate_ai2thor_dataset.py --dataset_root $AI2THOR_DATASET_ROOT 
 ```
 
 
-## Extract 2D (Detection) Segmentation and per-resgion features
+## 4. Extract 2D (Detection) Segmentation and per-resgion features
 
 First, (Detection) Segmentation results and per-region CLIP features are extracted. In the following, we provide two options. 
 * The first one (ConceptGraphs) uses SAM in the "segment all" mode and extract class-agnostic masks. 
@@ -180,7 +181,7 @@ The above commands will save the detection and segmentation results in `$REPLICA
 The visualization of the detection and segmentation can be viewed in `$REPLICA_ROOT/$SCENE_NAME/gsa_vis_none` and `$REPLICA_ROOT/$SCENE_NAME/gsa_vis_ram_withbg_allclasses` respectively. 
 
 
-## Run the 3D object mapping system
+## 5. Run the 3D object mapping system
 The following command builds an object-based 3D map of the scene, using the image segmentation results from above.  
 
 * Use `save_objects_all_frames=True` to save the mapping results at every frame, which can be used for animated visualization by `scripts/animate_mapping_interactive.py` and `scripts/animate_mapping_save.py`. 
@@ -235,7 +236,7 @@ python slam/cfslam_pipeline_batch.py \
 The above commands will save the mapping results in `$REPLICA_ROOT/$SCENE_NAME/pcd_saves`. It will create two `pkl.gz` files, where the one with `_post` suffix indicates results after some post processing, which we recommend using.
 
 
-## Visualize the object-based mapping results
+## 6. Visualize the object-based mapping results
 
 ```bash
 python scripts/visualize_cfslam_results.py --result_path /path/to/output.pkl.gz
@@ -248,11 +249,11 @@ Then in the open3d visualizer window, you can use the following key callbacks to
 * Press `f` and type text in the terminal, and the point cloud will be colored by the CLIP similarity with the input text. 
 * Press `i` to color the point clouds by object instance ID. 
 
-## Topological scene graph construction (TODO)
+## 7. Topological scene graph construction (TODO)
 Concetp-graph used [build_scenegraph_cfslam](./conceptgraph/scenegraph/build_scenegraph_cfslam.py) to construct the scene graph, but required gpt4 and llava to predict the object spatial relationship. We only need a simple and useful scene graph builder. I put a code draft in the [dynamic_scene_graph](./dynamic_scene_graph/dynamic_scene_graph.py), but I haven't complete it. It would be helpful for development based on this code draft or the code in conceptgraph. For localization, I simply cluster the objects and judge the connectivity based on the Euclidean distance.
 
 
-## Monte-Carlo localization with prebuilt scene graph
+## 8. Monte-Carlo localization with prebuilt scene graph
 My developed codes inlcude: monte_carlo_localization.py, semantic_detection.py, semantic_particle_filter.py,localization_utils.py, vis_results.py.
 
 The MCL runs by first randomly sampling a 40-step trajectory within the reachable positions (read from reachable.json) to control the robot. Each pose of the trajectory in the AI2THOR is defined as (x, y, z, yaw), where XYZ follows the left-hand rule, where Z is the viewing direction, X is right, and Y is up. Euler angles are in degrees. At each step, the MCL estimates the robot pose viaa the standard prediction-update-resample pipeline, while instead matching the CLIP-based visual embeddings with those obseved at each particle pose to update the likelihood.
@@ -279,11 +280,11 @@ python3 ./localization/vis_results.py --log-dir loc_outputs/train_3/trajectory1 
 ```
 
 
-## Setup for Detic
+## 9. Setup for Detic
 Follow the installation instruction of [Detic](./scene_understand/Detic/README.md#L27).
 
 
-## Others
+## 10. Others
 ```bash
 # install torch, torchvision with cu118
 pip install torch==2.3.1+cu118 torchvision==0.18.1+cu118 torchaudio==2.3.1+cu118 -f https://download.pytorch.org/whl/torch_stable.html
