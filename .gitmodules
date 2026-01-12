@@ -1,0 +1,3 @@
+[submodule "scene_understand/Detic"]
+	path = scene_understand/Detic
+	url = git@github.com:chch9907/Detic.git
