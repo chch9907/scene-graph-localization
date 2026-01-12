@@ -1,38 +1,17 @@
-# ConceptGraphs: Open-Vocabulary 3D Scene Graphs for Perception and Planning
+# Open-vacabulary Scene Graph Construction and Monte-Carlo Localization 
+Developed by Chang Chen@hku, 2026.1.12
 
-[**Project Page**](https://concept-graphs.github.io/) |
-[**Paper**](https://concept-graphs.github.io/assets/pdf/2023-ConceptGraphs.pdf) |
-[**ArXiv**](https://arxiv.org/abs/2309.16650) |
-[**Video**](https://www.youtube.com/watch?v=mRhNkQwRYnc&feature=youtu.be&ab_channel=AliK)
+## Content
+This repo was folked from [concept-graph](scene_graphs/3dvproject/conceptgraph/localization). I made three main differences: 
+ - [conceptgraph/localization](./conceptgraph/localization/): contains all the necessary codes for running a simple monte-carlo localization when kidnappig a robot into the scene. This code requires building scene graphs and doing relocalization on an offline collected RGBD datatset, e.g., Replica dataset, and AI2THOR (I mainly used), or a rosbag in a real-world scene. Several improvement can be made on it, e.g., modifying it to advanced localization algorithms, or adding an active localization strategy. This code uses Grounded-SAM + CLIP for semantic understanding using the NVIDIA RTX 4090 GPU. More details of the original concept-graph can be found in [REAMDE_conceptgraph.md](./README_conceptgraph.md).
+ - [scene_understand](./scene_understand/): contains an open-vocabulary object detector using Detic + CLIP, designing for real-world deployment with its better inference speed than Grounded-SAM + CLIP. I have custimized the Detic for better integration with other modules. In experiments, it concumed 1.3s per frame on NVIDIA Jetson Orin NX. 
+ - [dynamic_scene_graph](./dynamic_scene_graph/): contains a code draft for establishing a dynamic topological graph with the networkx library. I haven't complete it, and it would be useful to build on it.
 
+```bash
+git clone xx --recurse-submodules
+```
 
-[Qiao Gu](https://georgegu1997.github.io/)\*,
-[Ali Kuwajerwala](https://www.alihkw.com/)\*,
-[Sacha Morin](https://sachamorin.github.io/)\*,
-[Krishna Murthy Jatavallabhula](https://krrish94.github.io/)\*,
-[Bipasha Sen](https://bipashasen.github.io/),
-[Aditya Agarwal](https://skymanaditya1.github.io/),
-[Corban Rivera](https://www.jhuapl.edu/work/our-organization/research-and-exploratory-development/red-staff-directory/corban-rivera),
-[William Paul](https://scholar.google.com/citations?user=92bmh84AAAAJ),
-[Kirsty Ellis](https://mila.quebec/en/person/kirsty-ellis/),
-[Rama Chellappa](https://engineering.jhu.edu/faculty/rama-chellappa/),
-[Chuang Gan](https://people.csail.mit.edu/ganchuang/),
-[Celso Miguel de Melo](https://celsodemelo.net/),
-[Joshua B. Tenenbaum](http://web.mit.edu/cocosci/josh.html),
-[Antonio Torralba](https://groups.csail.mit.edu/vision/torralbalab/),
-[Florian Shkurti](http://www.cs.toronto.edu//~florian/),
-[Liam Paull](http://liampaull.ca/)
-
-![Splash Figure](./assets/splash-final.png)
-
-# Updates
-
-* The codebase has been significantly refactored in the `ali-dev` [branch](https://github.com/concept-graphs/concept-graphs/tree/ali-dev), which provides a real-time, streamlined re-implementation that supports RGB-D video from iPhone and has a better visualization using [Rerun.io](https://rerun.io/). We also provide this [getting started video tutorial](https://youtu.be/56jEFyrqqpo?si=jo-qto5Gv8qxqEw2). Please check it out!
-* The code for real-world mapping and navigation using a Jackal robot is open-sourced [here](https://github.com/sachaMorin/concept_graphs_jackal).
-* The code for localization and mapping in AI2Thor is released in the codebase. See [here](https://github.com/concept-graphs/concept-graphs/tree/main?tab=readme-ov-file#ai2thor-related-experiments) for instructions.
-
-
-## Setup
+## Setup for conceptgraph-localization
 
 The env variables needed can be found in `env_vars.bash.template`. When following the setup guide below, you can duplicate that files and change the variables accordingly for easy setup. 
 
@@ -77,7 +56,7 @@ pip install .
 
 ### Install [Grounded-SAM](https://github.com/IDEA-Research/Grounded-Segment-Anything) package
 
-Follow the instructions on the original [repo](https://github.com/IDEA-Research/Grounded-Segment-Anything#install-without-docker). ConceptGraphs has been tested with the codebase at this [commit](https://github.com/IDEA-Research/Grounded-Segment-Anything/commit/a4d76a2b55e348943cba4cd57d7553c354296223). Grounded-SAM codebase at later commits may require some adaptations. 
+Follow the instructions on the original [repo](https://github.com/IDEA-Research/Grounded-Segment-Anything#install-without-docker). ConceptGraphs has been tested with the codebase at this [commit](https://github.com/IDEA-Research/Grounded-Segment-Anything/commit/a4d76a2b55e348943cba4cd57d7553c354296223). Grounded-SAM codebase at later commits may require some adaptations. (**If facing ModuleNotFoundError: No module named 'torch' when compiling grounding-dino, try running python3 setup.py install**)
 
 First checkout the package by 
 
@@ -106,16 +85,6 @@ After installation, set the path to Grounded-SAM as an environment variable
 export GSA_PATH=/path/to/Grounded-Segment-Anything
 ```
 
-### (Optional) Set up the EfficientSAM variants
-
-Follow the installation instructions on this [page](https://github.com/IDEA-Research/Grounded-Segment-Anything/tree/main/EfficientSAM). The major steps are:
-
-* Install FastSAM codebase following [here](https://github.com/CASIA-IVA-Lab/FastSAM#installation). You don't have to create a new conda env. Just installing it in the same env as the Grounded-SAM is fine.
-* Download FastSAM checkpoints [FastSAM-x.pt](https://github.com/CASIA-IVA-Lab/FastSAM#model-checkpoints) and save it to `Grounded-Segment-Anything/EfficientSAM`. 
-* Download MobileSAM checkpoints [mobile_sam.pt](https://github.com/ChaoningZhang/MobileSAM/blob/master/weights/mobile_sam.pt) and save it to `Grounded-Segment-Anything/EfficientSAM`. 
-* Download Light HQ-SAM checkpoints [sam_hq_vit_tiny.pth](https://huggingface.co/lkeab/hq-sam/resolve/main/sam_hq_vit_tiny.pth) and save it to `Grounded-Segment-Anything/EfficientSAM`. 
-
-
 ### Install this repo
 
 ```bash
@@ -124,17 +93,9 @@ cd concept-graphs
 pip install -e .
 ```
 
-### Set up LLaVA (used for scene graph generation)
+## Prepare dataset
 
-Follow the instructions on the [LLaVA repo](https://github.com/haotian-liu/LLaVA) to set it up. You also need to prepare the LLaVA checkpoints and save them to `$LLAVA_CKPT_PATH`. We have tested with model checkpoint `LLaVA-7B-v0` and [LLaVA code](https://github.com/haotian-liu/LLaVA) at this [commit](https://github.com/haotian-liu/LLaVA/tree/8fc54a09a6be74b2abd913c468fb3d42ae826194). LLaVA codebase at later commits may require some adaptations.
-
-```bash
-# Set the env variables as follows (change the paths accordingly)
-export LLAVA_PYTHON_PATH=/path/to/llava
-export LLAVA_CKPT_PATH=/path/to/LLaVA-7B-v0
-```
-
-## Prepare dataset (Replica as an example)
+### Replica dataset (optional)
 
 ConceptGraphs takes posed RGB-D images as input. Here we show how to prepare the dataset using [Replica](https://github.com/facebookresearch/Replica-Dataset) as an example. Instead of the original Replica dataset, download the scanned RGB-D trajectories of the Replica dataset provided by [Nice-SLAM](https://github.com/cvg/nice-slam). It contains rendered trajectories using the mesh models provided by the original Replica datasets. 
 
@@ -147,47 +108,55 @@ export CG_FOLDER=/path/to/concept-graphs/
 export REPLICA_CONFIG_PATH=${CG_FOLDER}/conceptgraph/dataset/dataconfigs/replica/replica.yaml
 ```
 
-ConceptGraphs can also be easily run on other dataset. See `dataset/datasets_common.py` for how to write your own dataloader. 
+### AI2Thor-related experiments (what I used)
 
-## Run ConceptGraph
-
-The following commands should be run in the `conceptgraph` folder.
+Use our own [fork](https://github.com/georgegu1997/ai2thor), where some changes were made to record the interaction trajectories. 
 
 ```bash
-cd conceptgraph
+cd .. # go back to the root folder CFSLAM
+git clone git@github.com:georgegu1997/ai2thor.git
+cd ai2thor
+git checkout main5.0.0
+pip install -e .
+
+# This is for the ProcThor dataset.
+pip install ai2thor-colab prior --upgrade
 ```
 
-### (Optional) Run regular 3D reconstruction for sanity check
 
-The following command runs a 3D RGB reconstruction ([GradSLAM](https://github.com/gradslam/gradslam)) of a replica scene and also visualize it. This is useful for sanity check. 
+## Generating AI2Thor datasets
 
-* `--visualize` requires it to be run with GUI.
+1. Use `$AI2THOR_DATASET_ROOT` as the directory ai2thor dataset and save it to a variable. Also set the scene used from AI2Thor. 
 
 ```bash
-SCENE_NAME=room0
-python scripts/run_slam_rgb.py \
-    --dataset_root $REPLICA_ROOT \
-    --dataset_config $REPLICA_CONFIG_PATH \
-    --scene_id $SCENE_NAME \
-    --image_height 480 \
-    --image_width 640 \
-    --stride 5 \
-    --visualize
+cd ./conceptgraph
+AI2THOR_DATASET_ROOT=/home/user/ldata/ai2thor  # your dataset directory
+SCENE_NAME=train_3  # any available scene 
 ```
 
-### Extract 2D (Detection) Segmentation and per-resgion features
+1. Generate a densely captured grid map for the selected scene. 
+```bash
+# Uniform sample camera locations (XY + Yaw) 
+python scripts/generate_ai2thor_dataset.py --dataset_root $AI2THOR_DATASET_ROOT --scene_name $SCENE_NAME --sample_method uniform --n_sample -1 --grid_size 0.5
+```
+
+
+## Extract 2D (Detection) Segmentation and per-resgion features
 
 First, (Detection) Segmentation results and per-region CLIP features are extracted. In the following, we provide two options. 
 * The first one (ConceptGraphs) uses SAM in the "segment all" mode and extract class-agnostic masks. 
 * The second one (ConceptGraphs-Detect) uses a tagging model and a detection model to extract class-aware bounding boxes first, and then use them as prompts for SAM to segment each object. 
 
 ```bash
-SCENE_NAME=room0
+cd ./conceptgraph
+SCENE_NAME=train_3  # any available scene 
+AI2THOR_DATASET_ROOT=/home/user/ldata/ai2thor  # your dataset directory
+AI2THOR_CONFIG_PATH=dataset/dataconfigs/ai2thor/ai2thor.yaml
 
-# The CoceptGraphs (without open-vocab detector)
+# The CoceptGraphs (without open-vocab detector, I used this cmd) 
 python scripts/generate_gsa_results.py \
-    --dataset_root $REPLICA_ROOT \
-    --dataset_config $REPLICA_CONFIG_PATH \
+    --dataset_root $AI2THOR_DATASET_ROOT \
+    --dataset_config $AI2THOR_CONFIG_PATH \
     --scene_id $SCENE_NAME \
     --class_set none \
     --stride 5
@@ -195,8 +164,8 @@ python scripts/generate_gsa_results.py \
 # The ConceptGraphs-Detect 
 CLASS_SET=ram
 python scripts/generate_gsa_results.py \
-    --dataset_root $REPLICA_ROOT \
-    --dataset_config $REPLICA_CONFIG_PATH \
+    --dataset_root $AI2THOR_DATASET_ROOT \
+    --dataset_config $AI2THOR_CONFIG_PATH \
     --scene_id $SCENE_NAME \
     --class_set $CLASS_SET \
     --box_threshold 0.2 \
@@ -210,21 +179,25 @@ python scripts/generate_gsa_results.py \
 The above commands will save the detection and segmentation results in `$REPLICA_ROOT/$SCENE_NAME/`. 
 The visualization of the detection and segmentation can be viewed in `$REPLICA_ROOT/$SCENE_NAME/gsa_vis_none` and `$REPLICA_ROOT/$SCENE_NAME/gsa_vis_ram_withbg_allclasses` respectively. 
 
-You can ignore the `There's a wrong phrase happen, this is because of our post-process merged wrong tokens, which will be modified in the future. We will assign it with a random label at this time.` message for now. 
 
-### Run the 3D object mapping system
-
+## Run the 3D object mapping system
 The following command builds an object-based 3D map of the scene, using the image segmentation results from above.  
 
 * Use `save_objects_all_frames=True` to save the mapping results at every frame, which can be used for animated visualization by `scripts/animate_mapping_interactive.py` and `scripts/animate_mapping_save.py`. 
 * Use `merge_interval=20  merge_visual_sim_thresh=0.8  merge_text_sim_thresh=0.8` to also perform overlap-based merging during the mapping process. 
 
 ```bash
-# Using the CoceptGraphs (without open-vocab detector)
+cd ./conceptgraph
+SCENE_NAME=train_3  # any available scene of AI2THOR
+AI2THOR_DATASET_ROOT=/home/user/ldata/ai2thor  # your dataset directory
+AI2THOR_CONFIG_PATH=dataset/dataconfigs/ai2thor/ai2thor.yaml
+
+
+# Using the CoceptGraphs (without open-vocab detector, class-agnostic)
 THRESHOLD=1.2
 python slam/cfslam_pipeline_batch.py \
-    dataset_root=$REPLICA_ROOT \
-    dataset_config=$REPLICA_CONFIG_PATH \
+    dataset_root=$AI2THOR_DATASET_ROOT \
+    dataset_config=$AI2THOR_CONFIG_PATH \
     stride=5 \
     scene_id=$SCENE_NAME \
     spatial_sim_type=overlap \
@@ -241,12 +214,11 @@ python slam/cfslam_pipeline_batch.py \
     merge_visual_sim_thresh=0.8 \
     merge_text_sim_thresh=0.8
 
-# On the ConceptGraphs-Detect 
-SCENE_NAME=room0
+# or the ConceptGraphs-Detect (class-aware)
 THRESHOLD=1.2
 python slam/cfslam_pipeline_batch.py \
-    dataset_root=$REPLICA_ROOT \
-    dataset_config=$REPLICA_CONFIG_PATH \
+    dataset_root=$AI2THOR_DATASET_ROOT \
+    dataset_config=$AI2THOR_CONFIG_PATH \
     stride=5 \
     scene_id=$SCENE_NAME \
     spatial_sim_type=overlap \
@@ -260,16 +232,10 @@ python slam/cfslam_pipeline_batch.py \
     save_suffix=overlap_maskconf0.25_simsum${THRESHOLD}_dbscan.1
 ```
 
-The above commands will save the mapping results in `$REPLICA_ROOT/$SCENE_NAME/pcd_saves`. It will create two `pkl.gz` files, where the one with `_post` suffix indicates results after some post processing, which we recommend using.`
+The above commands will save the mapping results in `$REPLICA_ROOT/$SCENE_NAME/pcd_saves`. It will create two `pkl.gz` files, where the one with `_post` suffix indicates results after some post processing, which we recommend using.
 
-If you run the above command with `save_objects_all_frames=True`, it will create a folder in `$REPLICA_ROOT/$SCENE_NAME/objects_all_frames`. Then you can run the following command to visualize the mapping process or save it to a video. Also see the relevant files for available key callbacks for viusalization options. 
 
-```
-python scripts/animate_mapping_interactive.py --input_folder $REPLICA_ROOT/$SCENE_NAME/objects_all_frames/<folder_name>
-python scripts/animate_mapping_save.py --input_folder $REPLICA_ROOT/$SCENE_NAME/objects_all_frames/<folder_name>
-```
-
-### Visualize the object-based mapping results
+## Visualize the object-based mapping results
 
 ```bash
 python scripts/visualize_cfslam_results.py --result_path /path/to/output.pkl.gz
@@ -282,143 +248,47 @@ Then in the open3d visualizer window, you can use the following key callbacks to
 * Press `f` and type text in the terminal, and the point cloud will be colored by the CLIP similarity with the input text. 
 * Press `i` to color the point clouds by object instance ID. 
 
-### Evaluate semantic segmentation from the object-based mapping results on Replica datasets
+## Topological scene graph construction (TODO)
+Concetp-graph used [build_scenegraph_cfslam](./conceptgraph/scenegraph/build_scenegraph_cfslam.py) to construct the scene graph, but required gpt4 and llava to predict the object spatial relationship. We only need a simple and useful scene graph builder. I put a code draft in the [dynamic_scene_graph](./dynamic_scene_graph/dynamic_scene_graph.py), but I haven't complete it. It would be helpful for development based on this code draft or the code in conceptgraph. For localization, I simply cluster the objects and judge the connectivity based on the Euclidean distance.
 
-First, download the GT point cloud with per-point semantic segmentation labels from this [Google Drive link](https://drive.google.com/file/d/1NhQIM5PCH5L5vkZDSRq6YF1bRaSX2aem/view?usp=sharing). Please refer to [this issue](https://github.com/concept-graphs/concept-graphs/issues/18#issuecomment-1876673985) for a brief description of how they are generated. Unzip the file and record its location in `REPLICA_SEMANTIC_ROOT`. 
 
-Then run the following command to evaluate the semantic segmentation results. The results will be saved in the `results` folder, where the mean recall `mrecall` is the mAcc and `fmiou` is the F-mIoU reported in the paper. 
+## Monte-Carlo localization with prebuilt scene graph
+My developed codes inlcude: monte_carlo_localization.py, semantic_detection.py, semantic_particle_filter.py,localization_utils.py, vis_results.py.
+
+The MCL runs by first randomly sampling a 40-step trajectory within the reachable positions (read from reachable.json) to control the robot. Each pose of the trajectory in the AI2THOR is defined as (x, y, z, yaw), where XYZ follows the left-hand rule, where Z is the viewing direction, X is right, and Y is up. Euler angles are in degrees. At each step, the MCL estimates the robot pose viaa the standard prediction-update-resample pipeline, while instead matching the CLIP-based visual embeddings with those obseved at each particle pose to update the likelihood.
+
+
+The following command runs different versions of the MCL. The --trajectory_file specifies the trajectory loading for controlling the robot and conducting the experiment. If its file does not exist, the code will first randomly sample a trajectory. The --exp_name specifies different modes of the information weights multiplying on each matched similarity. All the related codes are in the [semantic_particle_filter.py](./conceptgraph/localization/semantic_particle_filter.py#L391) (update function). In practice, I found my designed information weights cannot produce stable improvement compared to the baseline in different trials. So it is recommended to use baseline mode. 
+
 
 ```bash
-# CoceptGraphs (without open-vocab detector)
-python scripts/eval_replica_semseg.py \
-    --replica_root $REPLICA_ROOT \
-    --replica_semantic_root $REPLICA_SEMANTIC_ROOT \
-    --n_exclude 6 \
-    --pred_exp_name none_overlap_maskconf0.95_simsum1.2_dbscan.1_merge20_masksub
+# (default) At each update step, when successfully matching the detected objects and the objects on the scene graph, assign each matched object with a uniform weight. It can achieve stable convergence in different trails, though the accuracy may not be so good.
+python3 ./localization/monte_carlo_localization.py --trajectory_file trajectory1.pkl # --exp_name baseline
 
-# On the ConceptGraphs-Detect (Grounding-DINO as the object detector)
-python scripts/eval_replica_semseg.py \
-    --replica_root $REPLICA_ROOT \
-    --replica_semantic_root $REPLICA_SEMANTIC_ROOT \
-    --n_exclude 6 \
-    --pred_exp_name ram_withbg_allclasses_overlap_maskconf0.25_simsum1.2_dbscan.1_masksub
+# Semantic uniqueness: prioritize the less common objects with a recipocal of the TF-IDF score.
+python3 ./localization/monte_carlo_localization.py --trajectory_file trajectory1.pkl --exp_name semantic --alpha 1  
+
+# Cluster centraility: prioritize the objects that are the centroid of an object cluster, measured by the degrees.
+python3 ./localization/monte_carlo_localization.py --trajectory_file trajectory1.pkl --exp_name central --alpha 0  
+
+# Combination with a balancing alpha
+python3 ./localization/monte_carlo_localization.py --trajectory_file trajectory1.pkl --exp_name combine0.5 --alpha 0.5
+
+# visualize the results, specifying the labels to compare different methods
+python3 ./localization/vis_results.py --log-dir loc_outputs/train_3/trajectory1 --labels baseline semantic central
 ```
 
 
+## Setup for Detic
+Follow the installation instruction of [Detic](./scene_understand/Detic/README.md#L27).
 
-### Extract object captions and build scene graphs
 
-Ensure that the `openai` package is installed and that your APIKEY is set. We recommend using GPT-4, since GPT-3.5 often produces inconsistent results on this task.
+## Others
 ```bash
-export OPENAI_API_KEY=<your GPT-4 API KEY here>
-```
+# install torch, torchvision with cu118
+pip install torch==2.3.1+cu118 torchvision==0.18.1+cu118 torchaudio==2.3.1+cu118 -f https://download.pytorch.org/whl/torch_stable.html
 
-Also note that if you are using the same [commit](https://github.com/haotian-liu/LLaVA/tree/8fc54a09a6be74b2abd913c468fb3d42ae826194) as we did, you may need to make the following change at [this line](https://github.com/haotian-liu/LLaVA/blob/8fc54a09a6be74b2abd913c468fb3d42ae826194/llava/mm_utils.py#L68) in the original LLaVa repo to run the following commands. 
-
-```python
-            # if output_ids[0, -keyword_id.shape[0]:] == keyword_id:
-            #     return True
-            if torch.equal(output_ids[0, -keyword_id.shape[0]:], keyword_id):
-                return True
-```
-
-Then run the following commands sequentially to extract per-object captions and build the 3D scene graph. 
-
-```bash
-SCENE_NAME=room0
-PKL_FILENAME=output.pkl.gz  # Change this to the actual output file name of the pkl.gz file
-
-python scenegraph/build_scenegraph_cfslam.py \
-    --mode extract-node-captions \
-    --cachedir ${REPLICA_ROOT}/${SCENE_NAME}/sg_cache \
-    --mapfile ${REPLICA_ROOT}/${SCENE_NAME}/pcd_saves/${PKL_FILENAME}
-
-python scenegraph/build_scenegraph_cfslam.py \
-    --mode refine-node-captions \
-    --cachedir ${REPLICA_ROOT}/${SCENE_NAME}/sg_cache \
-    --mapfile ${REPLICA_ROOT}/${SCENE_NAME}/pcd_saves/${PKL_FILENAME}
-
-python scenegraph/build_scenegraph_cfslam.py \
-    --mode build-scenegraph \
-    --cachedir ${REPLICA_ROOT}/${SCENE_NAME}/sg_cache \
-    --mapfile ${REPLICA_ROOT}/${SCENE_NAME}/pcd_saves/${PKL_FILENAME}
-```
-
-Then the object map with scene graph can be visualized using the following command. 
-* Press `g` to show the scene graph. 
-* Press "+" and "-" to increase and decrease the size of point cloud for better visualization.
-
-```bash
-python scripts/visualize_cfslam_results.py \
-    --result_path ${REPLICA_ROOT}/${SCENE_NAME}/sg_cache/map/scene_map_cfslam_pruned.pkl.gz \
-    --edge_file ${REPLICA_ROOT}/${SCENE_NAME}/sg_cache/cfslam_object_relations.json
-```
-
-
-## AI2Thor-related experiments
-
-During the development stage, we performed some experiments on the AI2Thor dataset. 
-Upon request, now we provide the code and instructions for these experiments. 
-However, note that we didn't perform any quantitative evaluation on AI2Thor. 
-And because of domain gap, performance of ConceptGraphs may be worse than other datasets reported. 
-
-### Setup 
-
-Use our own [fork](https://github.com/georgegu1997/ai2thor), where some changes were made to record the interaction trajectories. 
-
-```bash
-cd .. # go back to the root folder CFSLAM
-git clone git@github.com:georgegu1997/ai2thor.git
-cd ai2thor
-git checkout main5.0.0
-pip install -e .
-
-# This is for the ProcThor dataset.
-pip install ai2thor-colab prior --upgrade
-```
-
-If you meet error saying `Could not load the Qt platform plugin "xcb"` later on, it probably means that is some weird issue with `opencv-python` and `opencv-python-headless`. Try uninstalling them and install one of them back. 
-
-### Generating AI2Thor datasets
-
-1. Use `$AI2THOR_DATASET_ROOT` as the directory ai2thor dataset and save it to a variable. Also set the scene used from AI2Thor. 
-
-```bash
-# Change this to run it in a different scene in AI2Thor environment
-# train_3 is a scene from the ProcThor dataset, which containing multiple rooms in one house
-SCENE_NAME=train_3
-
-# The following scripts need to be run in the conceptgraph folder
-cd ./conceptgraph
-```
-
-2. Generate a densely captured grid map for the selected scene. 
-```bash
-# Uniform sample camera locations (XY + Yaw)
-python scripts/generate_ai2thor_dataset.py --dataset_root $AI2THOR_DATASET_ROOT --scene_name $SCENE_NAME --sample_method uniform --n_sample -1 --grid_size 0.5
-# Uniform sample + randomize lighting
-python scripts/generate_ai2thor_dataset.py --dataset_root $AI2THOR_DATASET_ROOT --scene_name $SCENE_NAME --sample_method uniform --n_sample -1 --grid_size 0.5 --save_suffix randlight --randomize_lighting
-```
-
-3. Generate a human-controlled trajectory for the selected scene. (GUI and keyboard interaction needed)
-```bash
-# Interact generation and save trajectory files. 
-# This line will open up a Unity window. You can control the agent with arrow keys in the terminal window. 
-python scripts/generate_ai2thor_dataset.py --dataset_root $AI2THOR_DATASET_ROOT --scene_name $SCENE_NAME --interact
-
-# Generate observations from the saved trajectory file
-python scripts/generate_ai2thor_dataset.py --dataset_root $AI2THOR_DATASET_ROOT --scene_name $SCENE_NAME --sample_method from_file
-```
-
-4. Generate a trajectory with object randomly moved. 
-```bash
-MOVE_RATIO=0.25
-RAND_SUFFIX=mv${MOVE_RATIO}
-python scripts/generate_ai2thor_dataset.py \
-    --dataset_root $AI2THOR_DATASET_ROOT \
-    --scene_name $SCENE_NAME \
-    --interact \
-    --save_suffix $RAND_SUFFIX \
-    --randomize_move_moveable_ratio $MOVE_RATIO \
-    --randomize_move_pickupable_ratio $MOVE_RATIO
+# use huggingface mirror
+export HF_HUB_ENABLE_HF_TRANSFER=1
+export HF_ENDPOINT=https://hf-mirror.com
 ```

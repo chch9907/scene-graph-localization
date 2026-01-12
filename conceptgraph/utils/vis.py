@@ -194,7 +194,7 @@ def vis_result_fast(
     image: np.ndarray, 
     detections: sv.Detections, 
     classes: list[str], 
-    color: Color | ColorPalette = ColorPalette.default(), 
+    color: Color | ColorPalette = ColorPalette.DEFAULT, #default(), 
     instance_random_color: bool = False,
     draw_bbox: bool = True,
 ) -> np.ndarray:
@@ -205,9 +205,10 @@ def vis_result_fast(
     # annotate image with detections
     box_annotator = sv.BoxAnnotator(
         color = color,
-        text_scale=0.3,
-        text_thickness=1,
-        text_padding=2,
+        # text_scale=0.3,
+        thickness=1,
+        # text_thickness=1,
+        # text_padding=2,
     )
     mask_annotator = sv.MaskAnnotator(
         color = color
@@ -236,7 +237,7 @@ def vis_result_fast(
     annotated_image = mask_annotator.annotate(scene=image.copy(), detections=detections)
     
     if draw_bbox:
-        annotated_image = box_annotator.annotate(scene=annotated_image, detections=detections, labels=labels)
+        annotated_image = box_annotator.annotate(scene=annotated_image, detections=detections) #, labels=labels)
     return annotated_image, labels
 
 def vis_result_slow_caption(image, masks, boxes_filt, pred_phrases, caption, text_prompt):

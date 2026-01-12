@@ -84,12 +84,16 @@ def generate_obs_from_poses(
 
         color = np.asarray(event.frame).copy()
         depth = np.asarray(event.depth_frame).copy()
+        depth[depth > 15] = 0  # Cut off the depth at 15 meters 
         instance = np.asarray(event.instance_segmentation_frame).copy()
 
         # Compute the agent and camera pose. They are different!
         agent_pose = get_agent_pose_from_event(event)
         camera_pose = get_camera_pose_from_event(event)
+        print('agent_pose', agent_pose, 'camera_pose', camera_pose)
 
+
+        #===================== save the observation ===============================
         color_path = color_path_temp.format(i)
         depth_path = depth_path_temp.format(i)
         instance_path = instance_path_temp.format(i)
@@ -104,7 +108,7 @@ def generate_obs_from_poses(
         os.makedirs(os.path.dirname(depth_path), exist_ok=True)
         # Cut off the depth at 15 meters 
         # some points are outside the house are handled later. 
-        depth[depth > 15] = 0
+        # depth[depth > 15] = 0
         depth_png = np.round(depth * depth_scale).astype(np.uint16)
         imageio.imwrite(depth_path, depth_png)
         
@@ -113,6 +117,7 @@ def generate_obs_from_poses(
 
         os.makedirs(os.path.dirname(pose_path), exist_ok=True)
         np.savetxt(pose_path, camera_pose)
+        #======================================================================
 
     np.savetxt(intrinsics_path, K)
     
@@ -278,7 +283,8 @@ def main(args: argparse.Namespace):
     )
     save_root = args.dataset_root + "/" + save_folder_name + "/"
     os.makedirs(save_root, exist_ok=True)
-
+    print('save_root', save_root)  # /home/user/ldata/ai2thor/train_3/
+    # assert False
     args.save_folder_name = save_folder_name
     args.save_root = save_root
 
@@ -334,6 +340,7 @@ def main(args: argparse.Namespace):
     if args.topdown_only:
         exit(0)
 
+    print('sampled_poses', len(sampled_poses))
     # Generate the images according to the trajectory and save them
     K = compute_intrinsics(args.fov, args.height, args.width)
     generate_obs_from_poses(
@@ -358,7 +365,7 @@ def main_interact(args: argparse.Namespace):
     )
     save_root = args.dataset_root + "/" + save_folder_name + "/"
     os.makedirs(save_root, exist_ok=True)
-    
+    print('dataset_root', args.dataset_root, save_folder_name)
     args.save_folder_name = save_folder_name
     args.save_root = save_root
     
@@ -370,10 +377,18 @@ def main_interact(args: argparse.Namespace):
         rotateStepDegrees=rot_step,
         snapToGrid=False,
         scene=get_scene(args.scene_name),
+        
         # camera properties
         width=args.width,
         height=args.height,
         fieldOfView=args.fov,
+
+        # image modalities
+        image_dir=save_root,
+        save_image_per_frame=True,
+        renderDepthImage=True,
+        renderInstanceSegmentation=True,
+        renderSemanticSegmentation=True,
     )
 
     load_or_randomize_scene(args, controller)
@@ -383,9 +398,13 @@ def main_interact(args: argparse.Namespace):
         degrees=30
     )
     
-    agent_logs = controller.interact()
+    agent_logs = controller.interact(
+        semantic_segmentation_frame=True,
+        instance_segmentation_frame=True,
+        depth_frame=True,
+        color_frame=True,
+        metadata=True,)
 
-    print("len(agent_logs):", len(agent_logs))
 
     trajectory_logs = {
         "scene_name": args.scene_name,
@@ -396,7 +415,7 @@ def main_interact(args: argparse.Namespace):
         "width": args.width,
         "agent_logs": agent_logs,
     }
-
+    print('trajectory_logs', trajectory_logs)
     # Save log into a json file
     if not args.no_save:
         log_path = save_root + "/" + args.traj_file_name
