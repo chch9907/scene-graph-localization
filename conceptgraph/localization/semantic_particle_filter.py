@@ -124,7 +124,6 @@ class SemanticParticleFilter:
         max_vis_dist: float = 4,
         connectivity_distance: float = 1.5,
         init_particles_path: str | None = None,
-        motion_delta_path: str | None = None,
         label_cache_path: str | None = None,
     ) -> None:
         self.scene_graph = scene_graph
@@ -288,16 +287,6 @@ class SemanticParticleFilter:
             )
         else:
             self.init_particles_path = None
-        if motion_delta_path:
-            self.motion_delta_path = (
-                motion_delta_path
-                if motion_delta_path.endswith('.pkl')
-                else f"{motion_delta_path}.pkl"
-            )
-            self.motion_delta_manager = MotionDeltaManager(self.motion_delta_path, self.num_particles)
-        else:
-            self.motion_delta_path = None
-            self.motion_delta_manager = None
         self.particles = self._init_particles()
         self.fov = fov
         self.weights = np.ones(num_particles, dtype=np.float32) / num_particles
@@ -348,16 +337,13 @@ class SemanticParticleFilter:
         particles[:, :3] = self.reachable[idx]
         particles[:, 3] = self.rng.uniform(-180.0, 180.0, size=self.num_particles)
 
-        if cache_path:  # save particles to reproduce results at any run
-            np.save(cache_path, particles)
-            print(f"Saved initial particles to {cache_path}")
+        # if cache_path:  # save particles to reproduce results at subsequent runs
+        #     np.save(cache_path, particles)
+        #     print(f"Saved initial particles to {cache_path}")
 
         return particles
 
     def _sample_motion_noise(self, trans_std: float, rot_std: float) -> tuple[np.ndarray, np.ndarray]:
-        # if self.motion_delta_manager:
-        #     return self.motion_delta_manager.sample(self.rng, trans_std, rot_std)
-
         trans_noise = np.zeros((self.num_particles, 3), dtype=np.float32)
         rot_noise = np.zeros(self.num_particles, dtype=np.float32)
         if trans_std > 0:
@@ -578,76 +564,3 @@ class SemanticParticleFilter:
         except OSError as exc:
             print(f"Warning: failed to save label cache to {self.label_cache_path}: {exc}")
 
-
-class MotionDeltaManager:
-    """Record or replay per-step motion deltas for deterministic runs."""
-
-    def __init__(self, path: str, num_particles: int) -> None:
-        self.path = path
-        self.num_particles = num_particles
-        self.cursor = 0
-        self.recorded: List[Dict[str, np.ndarray]] = []
-        self.replay_entries: List[Dict[str, np.ndarray]] | None = None
-        if  os.path.exists(path):
-            print('load recorded motion deltas from', path)
-            with open(path, "rb") as f:
-                data = pickle.load(f)
-            self.replay_entries = data.get("entries", [])
-            self._validate_entries()
-
-    def _validate_entries(self) -> None:
-        if self.replay_entries is None:
-            return
-        for idx, entry in enumerate(self.replay_entries):
-            trans = entry.get("trans")
-            rot = entry.get("rot")
-            if trans is None or rot is None:
-                raise ValueError(f"Motion delta file {self.path} is malformed at step {idx}.")
-            if trans.shape != (self.num_particles, 3) or rot.shape != (self.num_particles,):
-                raise ValueError(
-                    f"Motion delta entry {idx} has shape {trans.shape}, {rot.shape}, "
-                    f"expected {(self.num_particles, 3)} and {(self.num_particles,)}."
-                )
-
-    def sample(self, rng: np.random.Generator, trans_std: float, rot_std: float) -> tuple[np.ndarray, np.ndarray]:
-        if self.replay_entries is not None:
-            if self.cursor >= len(self.replay_entries):
-                raise ValueError(
-                    f"Motion delta file {self.path} only stores {len(self.replay_entries)} steps, "
-                    "but the current run needs more."
-                )
-            # consume RNG in the same way as the recording run so downstream draws (e.g., resampling)
-            # stay aligned, even though the actual noise values come from the cached log
-            self._draw_noise(rng, trans_std, rot_std)  #  step the generator forward without using the result
-            entry = self.replay_entries[self.cursor]
-            self.cursor += 1
-            return entry["trans"], entry["rot"]
-
-        trans_noise, rot_noise = self._draw_noise(rng, trans_std, rot_std)
-        self.recorded.append({"trans": trans_noise, "rot": rot_noise})
-        return trans_noise, rot_noise
-
-    def _draw_noise(
-        self,
-        rng: np.random.Generator,
-        trans_std: float,
-        rot_std: float,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        trans_noise = np.zeros((self.num_particles, 3), dtype=np.float32)
-        rot_noise = np.zeros(self.num_particles, dtype=np.float32)
-        if trans_std > 0:
-            trans_noise = rng.normal(0.0, trans_std, size=(self.num_particles, 3)).astype(np.float32)
-        if rot_std > 0:
-            rot_noise = rng.normal(0.0, rot_std, size=self.num_particles).astype(np.float32)
-        return trans_noise, rot_noise
-
-    def save(self) -> None:
-        if self.replay_entries is not None or len(self.recorded) == 0:
-            return
-        # Persist newly recorded motion noise so experiments can be replayed exactly
-        print('save motion deltas to', self.path)
-        save_dir = os.path.dirname(self.path)
-        if save_dir:
-            os.makedirs(save_dir, exist_ok=True)
-        with open(self.path, "wb") as f:
-            pickle.dump({"entries": self.recorded}, f)

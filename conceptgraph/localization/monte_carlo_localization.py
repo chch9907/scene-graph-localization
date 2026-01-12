@@ -602,11 +602,6 @@ def run(args: argparse.Namespace) -> None:
         if args.init_particles_file
         else None
     )
-    motion_delta_path = (
-        os.path.join(output_dir, args.motion_delta_file)
-        if args.motion_delta_file
-        else None
-    )
     obj_labels_path = (
         os.path.join(output_dir, args.obj_labels_file)
         if args.obj_labels_file
@@ -634,7 +629,6 @@ def run(args: argparse.Namespace) -> None:
         alpha=args.alpha,
         use_conf=args.use_conf,
         init_particles_path=init_particles_path,
-        motion_delta_path=motion_delta_path,
         label_cache_path=obj_labels_path,
     )
     scene_graph_attributes = {
@@ -663,7 +657,6 @@ def run(args: argparse.Namespace) -> None:
 
     if observation_cache:
         observation_cache.save()
-    # particle_filter.save_motion_deltas() 
 
 
     # Save log
