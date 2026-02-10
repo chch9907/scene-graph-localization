@@ -4,13 +4,11 @@ import numpy as np
 from typing import Dict, List
 import pickle
 from networkx.algorithms.components import connected_components
-
 from scipy.spatial.distance import cdist
-from PIL import ImageDraw, Image
+from PIL import ImagesDraw, Images
 from scipy.spatial import Voronoi, voronoi_plot_2d
-import scipy.ndimage as ndimage
 import os
-from utils.utils import get_center_dist, nearest_neighbor
+from utils import get_center_dist, nearest_neighbor
 
 class Point:
     def __init__(self, x, y):
@@ -22,61 +20,60 @@ class Point:
 
 
 class DynamicSceneGraph(object):
-    def __init__(self, obs, cfg, num_text, map_landmarks=None, is_global_map=False):
-        self.is_global_map = is_global_map
+    def __init__(self, obs_dict, cfg, is_global_map):
+
         self.prune = cfg.prune
         self.edge_thred = cfg.edge_thred
         self.neighbor_thred = cfg.neighbor_thred
         self.search_type = cfg.search_type
         self.cfg = cfg
-        self.map_landmarks = map_landmarks
         self.scores_list = []
-        
-        if self.is_global_map:
-            self.image = obs
-            self.depth = None
-        else:
-            self.image = obs['rgb'] 
-            self.depth = obs['depth']   
-        self.num_text = num_text
+        self.is_global_map = is_global_map
+        if self.is_global_map:  # prior graph
+            self.images = obs_dict
+            self.depths = None
+        else:  # online graph
+            self.images = obs_dict['rgb'] 
+            self.depths = obs_dict['depths']   
+
+        # Create graph attributes
+        self.graph = nx.Graph()
+        self.tsp = nx.approximation.traveling_salesman_problem
+        self.node_num = len(self.imagess)
         self.node_landmarks = []
         self.node_probs = []
         self.node_bboxs = []
         self.node_centers = []
         self.node_viewpoints = []
-        self.node_neighbors = [[] for _ in range(num_text)]
-        self.edges = np.zeros((num_text, num_text))
-        self.graph = nx.Graph()
-        self.tsp = nx.approximation.traveling_salesman_problem
+        self.node_neighbors = [[] for _ in range(self.node_num)]
+        self.edges = np.zeros((self.node_num, self.node_num))
+
         self.prune = cfg.prune
         self.edge_thred = cfg.edge_thred
         self.neighbor_thred = cfg.neighbor_thred
         self.search_type = cfg.search_type
-        # self.map_OCR_dict = map_OCR_dict
         self.scores_list = []
-        self.is_global_map = is_global_map
-        self.graph_path = cfg.map_path.replace('png', 'pkl')
-        if self.is_global_map and os.path.exists(self.graph_path):
-            # assert os.path.exists(graph_path)
-            self.load_graph(self.graph_path)
+        self.graph_path_path = cfg.map_path.replace('png', 'pkl')
+        if os.path.exists(self.graph_path_path):
+            self.load_graph(self.graph_path_path)
         else:
-            self.generate_graph(OCR_dict, map_landmarks)
+            self.build_initial_graph(obs_dict)
             # self.save_graph(self.graph_path)
-        # print("node_neighbors:", self.node_neighbors)
     
     def offline_process(self,):
         print('offline process topological graph.')
-        # self.generate_graph(self.OCR_dict, map_landmarks)
-        self.save_graph(self.graph_path)
+        self.save_graph(self.graph_path_path)
     
     def __len__(self) -> int:
         return len(self.node_landmarks)
     
-    def generate_graph(self, ocr_list: List[Dict], map_graph: List[Dict]):
-        print('generate graph......')
+    def build_initial_graph(self, ocr_list: List[Dict], map_graph: List[Dict]):
+        print('build initial graph......')
+        #TODO
 
 
     def update(self, target_room_idx, target_room_score, target_room_pose, target_room_visited):
+        ## add nodes
         for i, (idx, score, pose) in enumerate(zip(target_room_idx, target_room_score, target_room_pose)):
             if idx not in self.node_idx:
                 self.node_idxs.append(idx)
@@ -86,7 +83,6 @@ class DynamicSceneGraph(object):
                 self.graph.add_node(idx)
                 
             else:
-                # i = self.node_idx.index(idx)
                 self.node_scores[i] = score
                 if idx in target_room_visited:
                     self.node_visited[i] = 1
@@ -100,14 +96,15 @@ class DynamicSceneGraph(object):
                     self.graph.add_edge(i, j, weight=self.node_scores[j])
                     self.graph.add_edge(j, i, weight=self.node_scores[i])
                     # self.node_neighbors[i].append(j)
+                #TODO: here I simply used distance to judge spatial relationship, 
+                #TODO: in the future it should contain relative angles, semantic relationship ("attach", "inside", etc)
         
         # if self.prune:
         #     self.graph = nx.transitive_reduction(self.graph)  #! not implemented for undirected or cyclic graph
     
     
-    
     def search_route(self, start_idx, goal_idx) -> List: 
-        # dijkstra_path, astar_path
+        # Using dijkstra_path or astar_path
         if self.search_type == 'dijkstra':
             shortest_route = nx.dijkstra_path(self.graph, start_idx, goal_idx)  # , weight='weight'
         elif self.search_type == 'astar':
@@ -166,7 +163,7 @@ class DynamicSceneGraph(object):
         self.node_neighbors = data['node_neighbors']
         self.node_bboxs = data['node_bboxs']
         self.edges = data['edges']
-        self.num_text = len(self.node_landmarks)
+        self.node_num = len(self.node_landmarks)
         self.graph = nx.readwrite.json_graph.node_link_graph(data['json_graph'])
         print('load graph:', load_path)
         
